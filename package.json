@@ -1,0 +1,32 @@
+{
+    "name": "climatecoin-token",
+    "version": "0.1.0",
+    "description": "Climatecoin token",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/climatecoin/climatecoin.git"
+    },
+    "license": "GPL-3.0",
+    "bugs": {
+        "url": "https://github.com/climatecoin/climatecoin/issues"
+    },
+    "homepage": "https://github.com/climatecoin/climatecoin",
+    "devDependencies": {
+        "async": "^2.4.0",
+        "bignumber.js": "^4.0.2",
+        "ethereumjs-testrpc": "^3.0.5",
+        "random-bytes": "^1.0.0",
+        "truffle": "3.2.4",
+        "truffle-hdwallet-provider": "0.0.3",
+        "web3": "^0.18.4"
+    },
+    "dependencies": {},
+    "main": "truffle.js",
+    "directories": {
+        "test": "test"
+    },
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "author": "Climatecoin"
+}
