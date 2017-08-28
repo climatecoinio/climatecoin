@@ -40,8 +40,6 @@ contract ClimateContribution is Owned, TokenController {
 
     uint256 constant public fourthBonusPercent = 5;
 
-    uint256 constant public minGuaranteedPurchase = 100 ether;
-
     MiniMeToken public Climate;
 
     uint256 public startBlock;
@@ -56,13 +54,15 @@ contract ClimateContribution is Owned, TokenController {
 
     address public climateController;
 
-    mapping (address => bool) public guaranteedBuyers;
+    mapping (address => uint256) public guaranteedBuyersLimit;
 
     mapping (address => uint256) public guaranteedBuyersBought;
 
     uint256 public totalGuaranteedCollected;
 
     uint256 public totalNormalCollected;
+
+    uint256 public reservedGuaranteed;
 
     uint256 public finalizedBlock;
 
@@ -145,13 +145,19 @@ contract ClimateContribution is Owned, TokenController {
         destTokensDevs = _destTokensDevs;
     }
 
-    /// @notice This method should be called by the owner after the initialization
+    /// @notice Sets the limit for a guaranteed address. All the guaranteed addresses
+    ///  will be able to get REALs during the contribution period with his own
+    ///  specific limit.
+    ///  This method should be called by the owner after the initialization
     ///  and before the contribution starts.
     /// @param _th Guaranteed address
-    function setGuaranteedAddress(address _th) public initialized onlyOwner {
+    /// @param _limit Limit for the guaranteed address.
+    function setGuaranteedAddress(address _th, uint256 _limit) public initialized onlyOwner {
         require(getBlockNumber() < startBlock);
-        guaranteedBuyers[_th] = true;
-        GuaranteedAddress(_th);
+        require(_limit > 0 && _limit <= maxGuaranteedLimit);
+        guaranteedBuyersLimit[_th] = _limit;
+        reservedGuaranteed = reservedGuaranteed + _limit;
+        GuaranteedAddress(_th, _limit);
     }
 
     /// @notice If anybody sends Ether directly to this contract, consider he is
@@ -171,7 +177,8 @@ contract ClimateContribution is Owned, TokenController {
     /// @param _th Climate holder where the CO2s will be minted.
     function proxyPayment(address _th) public payable notPaused initialized contributionOpen returns (bool) {
         require(_th != 0x0);
-        if (guaranteedBuyers[_th] == true) {
+        uint256 guaranteedRemaining = guaranteedBuyersLimit[_th].sub(guaranteedBuyersBought[_th]);
+        if (guaranteedRemaining > 0) {
             buyGuaranteed(_th);
         }
         else {
@@ -221,10 +228,15 @@ contract ClimateContribution is Owned, TokenController {
     }
 
     function buyGuaranteed(address _th) internal {
-        require(msg.value > minGuaranteedPurchase);
-        require(preSaleLimit >= totalGuaranteedCollected.add(msg.value));
+        uint256 toCollect = guaranteedBuyersLimit[_th];
 
-        uint256 toFund = msg.value;
+        uint256 toFund;
+        if (guaranteedBuyersBought[_th].add(msg.value) > toCollect) {
+            toFund = toCollect.sub(guaranteedBuyersBought[_th]);
+        }
+        else {
+            toFund = msg.value;
+        }
 
         guaranteedBuyersBought[_th] = guaranteedBuyersBought[_th].add(toFund);
         totalGuaranteedCollected = totalGuaranteedCollected.add(toFund);
@@ -236,58 +248,91 @@ contract ClimateContribution is Owned, TokenController {
         // Not needed, but double check.
         assert(totalCollected() <= failSafeLimit);
 
+        uint256 collected = totalCollected();
+        uint256 totCollected = collected;
+        collected = collected.sub(_toFund);
+
         if (_toFund > 0) {
             uint256 tokensGenerated = _toFund.mul(exchangeRate);
             uint256 tokensToBonusCap = 0;
             uint256 tokensToNextBonusCap = 0;
-            uint256 tokensToAdd = 0;
+            uint256 bonusTokens = 0;
 
             if (_guaranteed) {
-                tokensToAdd = tokensGenerated.percent(firstBonusPercent);
-                tokensGenerated = tokensGenerated + tokensToAdd;
+                uint256 guaranteedCollected = totalGuaranteedCollected - _toFund;
+                if (guaranteedCollected < firstBonusCap) {
+                    if (totalGuaranteedCollected < firstBonusCap) {
+                        tokensGenerated = tokensGenerated.add(tokensGenerated.percent(firstBonusPercent));
+                    }
+                    else {
+                        bonusTokens = firstBonusCap.sub(guaranteedCollected).percent(firstBonusPercent).mul(exchangeRate);
+                        tokensToBonusCap = tokensGenerated.add(bonusTokens);
+                        tokensToNextBonusCap = totalGuaranteedCollected.sub(firstBonusCap).percent(secondBonusPercent).mul(exchangeRate);
+                        tokensGenerated = tokensToBonusCap.add(tokensToNextBonusCap);
+                    }
+                }
+                else {
+                    if (totalGuaranteedCollected < secondBonusCap) {
+                        tokensGenerated = tokensGenerated.add(tokensGenerated.percent(secondBonusPercent));
+                    }
+                    else {
+                        bonusTokens = secondBonusCap.sub(guaranteedCollected).percent(secondBonusPercent).mul(exchangeRate);
+                        tokensToBonusCap = tokensGenerated.add(bonusTokens);
+                        tokensToNextBonusCap = totalGuaranteedCollected.sub(secondBonusCap).percent(thirdBonusPercent).mul(exchangeRate);
+                        tokensGenerated = tokensToBonusCap.add(tokensToNextBonusCap);
+                    }
+                }
             }
-            else if (totalCollected() < firstBonusCap) {
-                if (totalCollected().add(_toFund) < firstBonusCap) {
+            else if (collected < firstBonusCap) {
+                if (collected.add(_toFund) < firstBonusCap) {
                     tokensGenerated = tokensGenerated.add(tokensGenerated.percent(firstBonusPercent));
                 }
                 else {
-                    tokensToBonusCap = tokensGenerated.add(firstBonusCap.sub(totalCollected()).percent(firstBonusPercent));
-                    tokensToNextBonusCap = totalCollected().add(_toFund).sub(firstBonusCap).percent(secondBonusPercent);
+                    bonusTokens = firstBonusCap.sub(collected).percent(firstBonusPercent).mul(exchangeRate);
+                    tokensToBonusCap = tokensGenerated.add(bonusTokens);
+                    tokensToNextBonusCap = totCollected.sub(firstBonusCap).percent(secondBonusPercent).mul(exchangeRate);
                     tokensGenerated = tokensToBonusCap.add(tokensToNextBonusCap);
+
                 }
             }
-            else if (totalCollected() < secondBonusCap) {
-                if (totalCollected().add(_toFund) < secondBonusCap) {
+            else if (collected < secondBonusCap) {
+                if (collected.add(_toFund) < secondBonusCap) {
                     tokensGenerated = tokensGenerated.add(tokensGenerated.percent(secondBonusPercent));
                 }
                 else {
-                    tokensToBonusCap = tokensGenerated.add(secondBonusCap.sub(totalCollected()).percent(secondBonusPercent));
-                    tokensToNextBonusCap = totalCollected().add(_toFund).sub(secondBonusCap).percent(thirdBonusPercent);
+                    bonusTokens = secondBonusCap.sub(collected).percent(secondBonusPercent).mul(exchangeRate);
+                    tokensToBonusCap = tokensGenerated.add(bonusTokens);
+                    tokensToNextBonusCap = totCollected.sub(secondBonusCap).percent(thirdBonusPercent).mul(exchangeRate);
                     tokensGenerated = tokensToBonusCap.add(tokensToNextBonusCap);
                 }
             }
-            else if (totalCollected() < thirdBonusCap) {
-                if (totalCollected().add(_toFund) < thirdBonusCap) {
+            else if (collected < thirdBonusCap) {
+                if (collected.add(_toFund) < thirdBonusCap) {
                     tokensGenerated = tokensGenerated.add(tokensGenerated.percent(thirdBonusPercent));
-                }
-                else {
-                    tokensToBonusCap = tokensGenerated.add(thirdBonusCap.sub(totalCollected()).percent(thirdBonusPercent));
-                    tokensToNextBonusCap = totalCollected().add(_toFund).sub(thirdBonusCap).percent(fourthBonusPercent);
-                    tokensGenerated = tokensToBonusCap.add(tokensToNextBonusCap);
-                }
-            }
-            else if (totalCollected() < fourthBonusCap) {
-                if (totalCollected().add(_toFund) < fourthBonusCap) {
-                    tokensGenerated = tokensGenerated.add(tokensGenerated.percent(fourthBonusPercent));
-                }
-                else {
-                    tokensGenerated = tokensGenerated.add(fourthBonusCap.sub(totalCollected()).percent(fourthBonusPercent));
-                }
-            }
 
+                }
+                else {
+                    bonusTokens = thirdBonusCap.sub(collected).percent(thirdBonusPercent).mul(exchangeRate);
+                    tokensToBonusCap = tokensGenerated.add(bonusTokens);
+                    tokensToNextBonusCap = totCollected.sub(thirdBonusCap).percent(fourthBonusPercent).mul(exchangeRate);
+                    tokensGenerated = tokensToBonusCap.add(tokensToNextBonusCap);
+
+                }
+            }
+            else if (collected < fourthBonusCap) {
+                if (collected.add(_toFund) < fourthBonusCap) {
+                    tokensGenerated = tokensGenerated.add(tokensGenerated.percent(fourthBonusPercent));
+
+                }
+                else {
+                    bonusTokens = fourthBonusCap.sub(collected).percent(fourthBonusPercent).mul(exchangeRate);
+                    tokensGenerated = tokensGenerated.add(bonusTokens);
+                }
+            }
 
             assert(Climate.generateTokens(_th, tokensGenerated));
             destEthDevs.transfer(_toFund);
+
             NewSale(_th, _toFund, tokensGenerated, _guaranteed);
         }
 
@@ -466,7 +511,7 @@ contract ClimateContribution is Owned, TokenController {
 
     event NewSale(address indexed _th, uint256 _amount, uint256 _tokens, bool _guaranteed);
 
-    event GuaranteedAddress(address indexed _th);
+    event GuaranteedAddress(address indexed _th, uint256 _limit);
 
     event LogValue(uint256 amount);
 

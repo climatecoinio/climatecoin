@@ -84,8 +84,8 @@ contract("ClimateContribution", function (accounts) {
     });
 
     it("Adds 2 guaranteed addresses", async function () {
-        await climateContribution.setGuaranteedAddress(addressGuaranteed0);
-        await climateContribution.setGuaranteedAddress(addressGuaranteed1);
+        await climateContribution.setGuaranteedAddress(addressGuaranteed0, 120);
+        await climateContribution.setGuaranteedAddress(addressGuaranteed1, 140);
     });
 
     it("Moves time to start of the ICO, and does the first buy", async function () {
