@@ -77,10 +77,11 @@ contract("ClimateContribution", function (accounts) {
     });
 
     it("Moves time to start of the ICO and checks sale discounts for early participants", async function () {
+        climateContribution.setTotalNormalCollected(0);
+
         await climateContribution.setMockedBlockNumber(1000000);
         await climate.setMockedBlockNumber(1000000);
 
-        climateContribution.setTotalNormalCollected(0);
         await climate.sendTransaction({
             value: web3.toWei(1),
             gas: 300000,
@@ -90,10 +91,11 @@ contract("ClimateContribution", function (accounts) {
         let balanceBountiesWallet = await climate.balanceOf(addressDiscounts);
         assert.equal(web3.fromWei(balanceBountiesWallet).toNumber(), 250 * 1.25);
 
+        climateContribution.setTotalNormalCollected(web3.toWei(150000));
+
         await climateContribution.setMockedBlockNumber(1001000);
         await climate.setMockedBlockNumber(1001000);
 
-        climateContribution.setTotalNormalCollected(web3.toWei(150000));
         await climate.sendTransaction({
             value: web3.toWei(1),
             gas: 300000,
@@ -103,10 +105,11 @@ contract("ClimateContribution", function (accounts) {
         balanceBountiesWallet = await climate.balanceOf(addressDiscounts);
         assert.equal(web3.fromWei(balanceBountiesWallet).toNumber(), 312.5 + 250 * 1.20);
 
+        climateContribution.setTotalNormalCollected(web3.toWei(250000));
+
         await climateContribution.setMockedBlockNumber(1002000);
         await climate.setMockedBlockNumber(1002000);
 
-        climateContribution.setTotalNormalCollected(web3.toWei(250000));
         await climate.sendTransaction({
             value: web3.toWei(1),
             gas: 300000,
@@ -116,10 +119,11 @@ contract("ClimateContribution", function (accounts) {
         balanceBountiesWallet = await climate.balanceOf(addressDiscounts);
         assert.equal(web3.fromWei(balanceBountiesWallet).toNumber(), 612.5 + 250 * 1.15);
 
+        climateContribution.setTotalNormalCollected(web3.toWei(350000));
+
         await climateContribution.setMockedBlockNumber(1003000);
         await climate.setMockedBlockNumber(1003000);
 
-        climateContribution.setTotalNormalCollected(web3.toWei(350000));
         await climate.sendTransaction({
             value: web3.toWei(1),
             gas: 300000,
@@ -129,10 +133,11 @@ contract("ClimateContribution", function (accounts) {
         balanceBountiesWallet = await climate.balanceOf(addressDiscounts);
         assert.equal(web3.fromWei(balanceBountiesWallet).toNumber(), 900 + 250 * 1.05);
 
+        climateContribution.setTotalNormalCollected(web3.toWei(450000));
+
         await climateContribution.setMockedBlockNumber(1004000);
         await climate.setMockedBlockNumber(1004000);
 
-        climateContribution.setTotalNormalCollected(web3.toWei(450000));
         await climate.sendTransaction({
             value: web3.toWei(1),
             gas: 300000,
