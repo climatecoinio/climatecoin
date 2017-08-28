@@ -103,6 +103,7 @@ contract("ClimateContribution", function (accounts) {
 
         assert.equal(web3.fromWei(balance).toNumber(), 312.5);
     });
+
     it("Pauses and resumes the contribution ", async function () {
         await climateContribution.setMockedBlockNumber(1005000);
         await climate.setMockedBlockNumber(1005000);
@@ -112,6 +113,7 @@ contract("ClimateContribution", function (accounts) {
         });
         await climateContribution.resumeContribution();
     });
+
     it("Returns the remaining of the last transaction ", async function () {
         const initialBalance = await web3.eth.getBalance(addressClimate);
         await climate.sendTransaction({ value: web3.toWei(5), gas: 300000, gasPrice: "20000000000" });
