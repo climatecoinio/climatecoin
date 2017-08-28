@@ -16,5 +16,9 @@ contract ClimateContributionMock is ClimateContribution {
         mock_blockNumber = _b;
     }
 
+    function setTotalNormalCollected(uint256 _c) public {
+        totalNormalCollected = _c;
+    }
+
     uint mock_blockNumber = 1;
 }
