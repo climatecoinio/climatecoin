@@ -16,7 +16,7 @@ contract ClimateContribution is Owned, TokenController {
 
     uint256 constant public preSaleLimit = 100000 ether;
 
-    uint256 constant public maxGuaranteedLimit = 3000 ether;
+    uint256 constant public maxGuaranteedLimit = 30000 ether;
 
     uint256 constant public exchangeRate = 250;
 
