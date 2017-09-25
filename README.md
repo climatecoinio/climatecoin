@@ -1,6 +1,6 @@
 # Climatecoin
 
-- [Whitepaper](http://climatecoin.io/downloads/climatecoin_whitepaper_20082017.pdf)
+- [Whitepaper](https://github.com/climatecoinio/climatecoin/blob/master/whitepaper.pdf)
 
 ## Technical definition
 
