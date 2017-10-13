@@ -13,25 +13,25 @@ const addressOwner = "0xf93df8c288b9020e76583a6997362e89e0599e99";
 const addressesClimate = [
     "0x2ca9d4d0fd9622b08de76c1d484e69a6311db765",
 ];
-const multisigClimateReqs = 1
+const multisigClimateReqs = 1;
 const addressesCommunity = [
     "0x166ddbcfe4d5849b0c62063747966a13706a4af7",
 ];
-const multisigCommunityReqs = 1
+const multisigCommunityReqs = 1;
 const addressesReserve = [
     "0x4781fee94e7257ffb6e3a3dcc5f8571ddcc02109",
 ];
-const multisigReserveReqs = 1
+const multisigReserveReqs = 1;
 const addressesDevs = [
     "0xcee9f54a23324867d8537589ba8dc6c8a6e9d0b9",
 ];
-const multisigDevsReqs = 1
+const multisigDevsReqs = 1;
 
 const startBlock = 3800000;
 const endBlock = 3900000;
 
 module.exports = async function(deployer, network, accounts) {
-    if (network === "development") return;  // Don't deploy on tests
+    //if (network === "development") return;  // Don't deploy on tests
 
     // MultiSigWallet send
     let multisigClimateFuture = MultiSigWallet.new(addressesClimate, multisigClimateReqs);
@@ -54,6 +54,13 @@ module.exports = async function(deployer, network, accounts) {
     let miniMeTokenFactory = await miniMeTokenFactoryFuture;
     console.log("MiniMeTokenFactory: " + miniMeTokenFactory.address);
     console.log();
+
+    let climateFuture = Climate.new(miniMeTokenFactory.address);
+    let climateContributionFuture = ClimateContribution.new();
+
+    // Climate wait
+    let climate = await climateFuture;
+    let climateContribution = await climateContributionFuture;
 
     // Climate initialize checkpoints for 0th TX gas savings
     await climate.generateTokens('0x0', 1);
