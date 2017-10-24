@@ -62,7 +62,7 @@ contract ClimatePlaceHolder is TokenController, Owned {
                 return false;
             }
         }
-        return (getTime() > activationTime);
+        return (getTime() > activationTime) || (_from == owner);
     }
 
 

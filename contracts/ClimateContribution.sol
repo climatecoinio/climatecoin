@@ -16,7 +16,7 @@ contract ClimateContribution is Owned, TokenController {
 
     uint256 constant public maxGuaranteedLimit = 30000 ether;
 
-    uint256 constant public exchangeRate = 250;
+    uint256 constant public exchangeRate = 210;
 
     uint256 constant public maxGasPrice = 50000000000;
 
@@ -38,17 +38,20 @@ contract ClimateContribution is Owned, TokenController {
 
     uint256 constant public fourthBonusPercent = 5;
 
+    uint256 constant public guaranteedPercent = 25;
+
     MiniMeToken public Climate;
 
     uint256 public startBlock;
 
     uint256 public endBlock;
 
-    address public destEthDevs;
+    address public destEthTeam;
 
-    address public destTokensDevs;
-
+    address public destTokensTeam;
     address public destTokensReserve;
+    address public destTokensBounties;
+
 
     address public climateController;
 
@@ -100,48 +103,48 @@ contract ClimateContribution is Owned, TokenController {
     ///  the contribution finalizes.
     /// @param _startBlock Block when the contribution period starts
     /// @param _endBlock The last block that the contribution period is active
-    /// @param _destEthDevs Destination address where the contribution ether is sent
+    /// @param _destEthTeam Destination address where the contribution ether is sent
     /// @param _destTokensReserve Address where the tokens for the reserve are sent
-    /// @param _destTokensDevs Address where the tokens for the dev are sent
+    /// @param _destTokensTeam Address where the tokens for the dev are sent
+    /// @param _destTokensBounties Address where the tokens for the dev are sent
     function initialize(
-    address _climate,
-    address _climateController,
+            address _climate,
+            address _climateController,
+            uint256 _startBlock,
+            uint256 _endBlock,
+            address _destEthTeam,
+            address _destTokensReserve,
+            address _destTokensTeam,
+            address _destTokensBounties
+        ) public onlyOwner {
+            // Initialize only once
+            require(address(Climate) == 0x0);
 
-    uint256 _startBlock,
-    uint256 _endBlock,
+            Climate = MiniMeToken(_climate);
+            require(Climate.totalSupply() == 0);
+            require(Climate.controller() == address(this));
+            require(Climate.decimals() == 18);  // Same amount of decimals as ETH
 
-    address _destEthDevs,
+            require(_climateController != 0x0);
+            climateController = _climateController;
 
-    address _destTokensReserve,
-    address _destTokensDevs
-    ) public onlyOwner {
-        // Initialize only once
+            require(_startBlock >= getBlockNumber());
+            require(_startBlock < _endBlock);
+            startBlock = _startBlock;
+            endBlock = _endBlock;
 
-        require(address(Climate) == 0x0);
+            require(_destEthTeam != 0x0);
+            destEthTeam = _destEthTeam;
 
-        Climate = MiniMeToken(_climate);
-        require(Climate.totalSupply() == 0);
-        require(Climate.controller() == address(this));
-        require(Climate.decimals() == 18);
-        // Same amount of decimals as ETH
+            require(_destTokensReserve != 0x0);
+            destTokensReserve = _destTokensReserve;
 
-        require(_climateController != 0x0);
-        climateController = _climateController;
+            require(_destTokensTeam != 0x0);
+            destTokensTeam = _destTokensTeam;
 
-        require(_startBlock >= getBlockNumber());
-        require(_startBlock < _endBlock);
-        startBlock = _startBlock;
-        endBlock = _endBlock;
-
-        require(_destEthDevs != 0x0);
-        destEthDevs = _destEthDevs;
-
-        require(_destTokensReserve != 0x0);
-        destTokensReserve = _destTokensReserve;
-
-        require(_destTokensDevs != 0x0);
-        destTokensDevs = _destTokensDevs;
-    }
+            require(_destTokensBounties != 0x0);
+            destTokensBounties = _destTokensBounties;
+        }
 
     /// @notice Sets the limit for a guaranteed address. All the guaranteed addresses
     ///  will be able to get REALs during the contribution period with his own
@@ -222,6 +225,7 @@ contract ClimateContribution is Owned, TokenController {
         }
 
         totalNormalCollected = totalNormalCollected.add(toFund);
+        /*LogQuantity(0, "buyNormal");*/
         doBuy(_th, toFund, false);
     }
 
@@ -238,6 +242,8 @@ contract ClimateContribution is Owned, TokenController {
 
         guaranteedBuyersBought[_th] = guaranteedBuyersBought[_th].add(toFund);
         totalGuaranteedCollected = totalGuaranteedCollected.add(toFund);
+
+        /*LogQuantity(0, "buyGuaranteed");*/
         doBuy(_th, toFund, true);
     }
 
@@ -249,6 +255,9 @@ contract ClimateContribution is Owned, TokenController {
         uint256 collected = totalCollected();
         uint256 totCollected = collected;
         collected = collected.sub(_toFund);
+        /*LogQuantity(_toFund.div(10**18), "tofund");
+        LogQuantity(collected.div(10**18), "collected");
+        LogQuantity(totCollected.div(10**18), "totCollected");*/
 
         if (_toFund > 0) {
             uint256 tokensGenerated = _toFund.mul(exchangeRate);
@@ -257,39 +266,22 @@ contract ClimateContribution is Owned, TokenController {
             uint256 bonusTokens = 0;
 
             if (_guaranteed) {
-                uint256 guaranteedCollected = totalGuaranteedCollected - _toFund;
-                if (guaranteedCollected < firstBonusCap) {
-                    if (totalGuaranteedCollected < firstBonusCap) {
-                        tokensGenerated = tokensGenerated.add(tokensGenerated.percent(firstBonusPercent));
-                    }
-                    else {
-                        bonusTokens = firstBonusCap.sub(guaranteedCollected).percent(firstBonusPercent).mul(exchangeRate);
-                        tokensToBonusCap = tokensGenerated.add(bonusTokens);
-                        tokensToNextBonusCap = totalGuaranteedCollected.sub(firstBonusCap).percent(secondBonusPercent).mul(exchangeRate);
-                        tokensGenerated = tokensToBonusCap.add(tokensToNextBonusCap);
-                    }
-                }
-                else {
-                    if (totalGuaranteedCollected < secondBonusCap) {
-                        tokensGenerated = tokensGenerated.add(tokensGenerated.percent(secondBonusPercent));
-                    }
-                    else {
-                        bonusTokens = secondBonusCap.sub(guaranteedCollected).percent(secondBonusPercent).mul(exchangeRate);
-                        tokensToBonusCap = tokensGenerated.add(bonusTokens);
-                        tokensToNextBonusCap = totalGuaranteedCollected.sub(secondBonusCap).percent(thirdBonusPercent).mul(exchangeRate);
-                        tokensGenerated = tokensToBonusCap.add(tokensToNextBonusCap);
-                    }
-                }
+              tokensGenerated = tokensGenerated.add(tokensGenerated.percent(guaranteedPercent));
             }
             else if (collected < firstBonusCap) {
                 if (collected.add(_toFund) < firstBonusCap) {
                     tokensGenerated = tokensGenerated.add(tokensGenerated.percent(firstBonusPercent));
+                    /*LogQuantity(tokensGenerated.div(10**18), "Tokens generated plus percentage cap 1");*/
                 }
                 else {
                     bonusTokens = firstBonusCap.sub(collected).percent(firstBonusPercent).mul(exchangeRate);
+                    /*LogQuantity(bonusTokens.div(10**18), "bonus cap 1");*/
                     tokensToBonusCap = tokensGenerated.add(bonusTokens);
+                    /*LogQuantity(tokensToBonusCap.div(10**18), "tokens until cap 1");*/
                     tokensToNextBonusCap = totCollected.sub(firstBonusCap).percent(secondBonusPercent).mul(exchangeRate);
+                    /*LogQuantity(tokensToNextBonusCap.div(10**18), "tokens for cap 2");*/
                     tokensGenerated = tokensToBonusCap.add(tokensToNextBonusCap);
+                    /*LogQuantity(tokensGenerated.div(10**18), "Final tokens generated");*/
 
                 }
             }
@@ -329,7 +321,7 @@ contract ClimateContribution is Owned, TokenController {
             }
 
             assert(Climate.generateTokens(_th, tokensGenerated));
-            destEthDevs.transfer(_toFund);
+            destEthTeam.transfer(_toFund);
 
             NewSale(_th, _toFund, tokensGenerated, _guaranteed);
         }
@@ -383,9 +375,14 @@ contract ClimateContribution is Owned, TokenController {
         finalizedBlock = getBlockNumber();
         finalizedTime = now;
 
-        uint256 percentageToDevs = percent(20);
+        uint256 percentageToTeam = percent(20);
+
         uint256 percentageToContributors = percent(51);
-        uint256 percentageToReserve = percent(29);
+
+        uint256 percentageToReserve = percent(15);
+
+        uint256 percentageToBounties = percent(14);
+
 
         // Climate.totalSupply() -> Tokens minted during the contribution
         //  totalTokens  -> Total tokens that should be after the allocation
@@ -406,23 +403,34 @@ contract ClimateContribution is Owned, TokenController {
         //
         uint256 totalTokens = Climate.totalSupply().mul(percent(100)).div(percentageToContributors);
 
+
+        //
+        //                    percentageToBounties
+        //  bountiesTokens = ----------------------- * totalTokens
+        //                      percentage(100)
+        //
+        assert(Climate.generateTokens(
+            destTokensBounties,
+            totalTokens.mul(percentageToBounties).div(percent(100))));
+
         //
         //                    percentageToReserve
         //  reserveTokens = ----------------------- * totalTokens
         //                      percentage(100)
         //
         assert(Climate.generateTokens(
-        destTokensReserve,
-        totalTokens.mul(percentageToReserve).div(percent(100))));
+            destTokensReserve,
+            totalTokens.mul(percentageToReserve).div(percent(100))));
+
 
         //
-        //                   percentageToDevs
-        //  devTokens = ----------------------- * totalTokens
+        //                   percentageToTeam
+        //  teamTokens = ----------------------- * totalTokens
         //                   percentage(100)
         //
         assert(Climate.generateTokens(
-        destTokensDevs,
-        totalTokens.mul(percentageToDevs).div(percent(100))));
+            destTokensTeam,
+            totalTokens.mul(percentageToTeam).div(percent(100))));
 
         Climate.changeController(climateController);
 
@@ -514,4 +522,6 @@ contract ClimateContribution is Owned, TokenController {
     event LogValue(uint256 amount);
 
     event Finalized();
+
+    event LogQuantity(uint256 _amount, string _message);
 }

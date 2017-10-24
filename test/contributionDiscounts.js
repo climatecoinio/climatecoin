@@ -3,44 +3,55 @@
 const MultiSigWallet = artifacts.require("MultiSigWallet");
 const MiniMeTokenFactory = artifacts.require("MiniMeTokenFactory");
 const Climate = artifacts.require("ClimateMock");
-const ClimateContributionMock = artifacts.require("ClimateContributionMock");
+const ClimateContributionClass = artifacts.require("ClimateContributionMock");
 const ContributionWallet = artifacts.require("ContributionWallet");
 const DevTokensHolder = artifacts.require("DevTokensHolderMock");
-const ClimatePlaceHolderMock = artifacts.require("ClimatePlaceHolderMock");
+const ResTokensHolder = artifacts.require("ReserveTokensHolderMock");
+const ClimatePlaceHolderClass = artifacts.require("ClimatePlaceHolderMock");
 
 const assertFail = require("./helpers/assertFail");
 
-contract("ClimateContribution", function (accounts) {
-    const addressClimate = accounts[ 0 ];
-    const addressCommunity = accounts[ 1 ];
-    const addressReserve = accounts[ 2 ];
-    const addressDevs = accounts[ 3 ];
-    const addressDiscounts = accounts[ 4 ];
+contract("ClimateContributionDiscounts", function (accounts) {
+  const addressClimate = accounts[0];
+  const addressCommunity = accounts[1];
+  const addressReserve = accounts[2];
+  const addressBounties = accounts[9];
+  const addressDevs = accounts[3];
+  const addressREALHolder = accounts[4];
+  const addressDiscounts = accounts[5];
 
-    let multisigClimate;
-    let multisigCommunity;
-    let multisigReserve;
-    let multisigDevs;
-    let miniMeTokenFactory;
-    let climate;
-    let climateContribution;
-    let contributionWallet;
-    let devTokensHolder;
-    let climatePlaceHolder;
+  const addressGuaranteed0 = accounts[7];
+  const addressGuaranteed1 = accounts[8];
+
+  let multisigClimate;
+  let multisigCommunity;
+  let multisigReserve;
+  let multisigBounties;
+  let multisigDevs;
+  let miniMeTokenFactory;
+  let climate;
+  let climateContribution;
+  let contributionWallet;
+  let devTokensHolder;
+  let reserveTokensHolder;
+  let climatePlaceHolder;
 
     const startBlock = 1000000;
     const endBlock = 1040000;
 
     it("Deploys all contracts", async function () {
+
         multisigClimate = await MultiSigWallet.new([ addressClimate ], 1);
-        multisigCommunity = await MultiSigWallet.new([ addressCommunity ], 1);
-        multisigReserve = await MultiSigWallet.new([ addressReserve ], 1);
-        multisigDevs = await MultiSigWallet.new([ addressDevs ], 1);
+        multisigCommunity = await MultiSigWallet.new([addressCommunity], 1);
+        multisigReserve = await MultiSigWallet.new([addressReserve], 1);
+        multisigBounties = await MultiSigWallet.new([addressBounties], 1);
+        multisigDevs = await MultiSigWallet.new([addressDevs], 1);
+
 
         miniMeTokenFactory = await MiniMeTokenFactory.new();
 
         climate = await Climate.new(miniMeTokenFactory.address);
-        climateContribution = await ClimateContributionMock.new();
+        climateContribution = await ClimateContributionClass.new();
 
         contributionWallet = await ContributionWallet.new(
             multisigClimate.address,
@@ -52,10 +63,17 @@ contract("ClimateContribution", function (accounts) {
             climateContribution.address,
             climate.address);
 
-        climatePlaceHolder = await ClimatePlaceHolderMock.new(
+
+        reserveTokensHolder = await ResTokensHolder.new(
+            multisigReserve.address,
+            climateContribution.address,
+            climate.address);
+
+        climatePlaceHolder = await ClimatePlaceHolderClass.new(
             multisigCommunity.address,
             climate.address,
             climateContribution.address);
+
 
         await climate.changeController(climateContribution.address);
 
@@ -68,9 +86,12 @@ contract("ClimateContribution", function (accounts) {
 
             contributionWallet.address,
 
-            multisigReserve.address,
-            devTokensHolder.address);
+            reserveTokensHolder.address,
+            devTokensHolder.address,
+            multisigBounties.address);
+
     });
+
 
     it("Checks initial parameters", async function () {
         assert.equal(await climate.controller(), climateContribution.address);
@@ -89,7 +110,7 @@ contract("ClimateContribution", function (accounts) {
             from: addressDiscounts
         });
         let balanceBountiesWallet = await climate.balanceOf(addressDiscounts);
-        assert.equal(web3.fromWei(balanceBountiesWallet).toNumber(), 250 * 1.25);
+        assert.equal(web3.fromWei(balanceBountiesWallet).toNumber(), 210 * 1.25);
 
         climateContribution.setTotalNormalCollected(web3.toWei(150000));
 
@@ -103,7 +124,7 @@ contract("ClimateContribution", function (accounts) {
             from: addressDiscounts
         });
         balanceBountiesWallet = await climate.balanceOf(addressDiscounts);
-        assert.equal(web3.fromWei(balanceBountiesWallet).toNumber(), 312.5 + 250 * 1.20);
+        assert.equal(web3.fromWei(balanceBountiesWallet).toNumber(), 262.5 + 210 * 1.20);
 
         climateContribution.setTotalNormalCollected(web3.toWei(250000));
 
@@ -117,7 +138,7 @@ contract("ClimateContribution", function (accounts) {
             from: addressDiscounts
         });
         balanceBountiesWallet = await climate.balanceOf(addressDiscounts);
-        assert.equal(web3.fromWei(balanceBountiesWallet).toNumber(), 612.5 + 250 * 1.15);
+        assert.equal(web3.fromWei(balanceBountiesWallet).toNumber(), 514.5 + 210 * 1.15);
 
         climateContribution.setTotalNormalCollected(web3.toWei(350000));
 
@@ -131,7 +152,7 @@ contract("ClimateContribution", function (accounts) {
             from: addressDiscounts
         });
         balanceBountiesWallet = await climate.balanceOf(addressDiscounts);
-        assert.equal(web3.fromWei(balanceBountiesWallet).toNumber(), 900 + 250 * 1.05);
+        assert.equal(web3.fromWei(balanceBountiesWallet).toNumber(), 756 + 210 * 1.05);
 
         climateContribution.setTotalNormalCollected(web3.toWei(450000));
 
@@ -145,7 +166,7 @@ contract("ClimateContribution", function (accounts) {
             from: addressDiscounts
         });
         balanceBountiesWallet = await climate.balanceOf(addressDiscounts);
-        assert.equal(web3.fromWei(balanceBountiesWallet).toNumber(), 1162.5 + 250);
+        assert.equal(web3.fromWei(balanceBountiesWallet).toNumber(), 976.5 + 210);
     });
 
     it("Pauses and resumes the contribution ", async function () {
@@ -167,10 +188,13 @@ contract("ClimateContribution", function (accounts) {
         assert.isBelow(web3.fromWei(totalSupply).toNumber() - (180000 / 0.46), 0.01);
 
         const balanceDevs = await climate.balanceOf(devTokensHolder.address);
-        assert.equal(balanceDevs.toNumber(), totalSupply.mul(0.20).toNumber());
+        assert.equal(balanceDevs.toNumber(), totalSupply.mul(0.20).toNumber(), 'devs');
 
-        const balanceSecondary = await climate.balanceOf(multisigReserve.address);
-        assert.equal(balanceSecondary.toNumber(), totalSupply.mul(0.29).toNumber());
+        const balanceSecondary = await climate.balanceOf(reserveTokensHolder.address);
+        assert.equal(balanceSecondary.toNumber(), totalSupply.mul(0.15).toNumber(), 'reserve');
+
+        const balanceThird = await climate.balanceOf(multisigBounties.address);
+        assert.equal(balanceThird.toNumber(), totalSupply.mul(0.14).toNumber(), 'bounties');
     });
 
     it("Moves the Ether to the final multisig", async function () {

@@ -1,117 +1,127 @@
-const randomBytes = require("random-bytes");
-
 const MultiSigWallet = artifacts.require("MultiSigWallet");
 const MiniMeTokenFactory = artifacts.require("MiniMeTokenFactory");
 const Climate = artifacts.require("Climate");
-const ClimateContribution= artifacts.require("ClimateContribution");
+const ClimateContribution = artifacts.require("ClimateContribution");
 const ContributionWallet = artifacts.require("ContributionWallet");
 const DevTokensHolder = artifacts.require("DevTokensHolder");
 const ClimatePlaceHolder = artifacts.require("ClimatePlaceHolder");
+const ReserveTokensHolder = artifacts.require("ReserveTokensHolder");
+
 
 // All of these constants need to be configured before deploy
-const addressOwner = "0xf93df8c288b9020e76583a6997362e89e0599e99";
-const addressesClimate = [
-    "0x2ca9d4d0fd9622b08de76c1d484e69a6311db765",
-];
-const multisigClimateReqs = 1;
-const addressesCommunity = [
-    "0x166ddbcfe4d5849b0c62063747966a13706a4af7",
-];
-const multisigCommunityReqs = 1;
+const addressBitcoinSuisse = "0x8a838b1722750ba185f189092833791adb98955f";  //address test
+const addressMainOwner = "0x5f61a7da478e982bbd147201380c089e34543ab4";
+
 const addressesReserve = [
-    "0x4781fee94e7257ffb6e3a3dcc5f8571ddcc02109",
+    addressMainOwner
 ];
 const multisigReserveReqs = 1;
+
 const addressesDevs = [
-    "0xcee9f54a23324867d8537589ba8dc6c8a6e9d0b9",
+    addressMainOwner
 ];
 const multisigDevsReqs = 1;
 
-const startBlock = 3800000;
-const endBlock = 3900000;
+const addressesBounties = [
+    addressMainOwner
+];
+const multisigBountiesReqs = 1;
+
+const startBlock = 1567500;
+const endBlock = 1568000;
+
 
 module.exports = async function(deployer, network, accounts) {
     //if (network === "development") return;  // Don't deploy on tests
 
     // MultiSigWallet send
-    let multisigClimateFuture = MultiSigWallet.new(addressesClimate, multisigClimateReqs);
-    let multisigCommunityFuture = MultiSigWallet.new(addressesCommunity, multisigCommunityReqs);
     let multisigReserveFuture = MultiSigWallet.new(addressesReserve, multisigReserveReqs);
     let multisigDevsFuture = MultiSigWallet.new(addressesDevs, multisigDevsReqs);
+    let multisigBountiesFuture = MultiSigWallet.new(addressesBounties, multisigBountiesReqs);
     // MiniMeTokenFactory send
     let miniMeTokenFactoryFuture = MiniMeTokenFactory.new();
 
     // MultiSigWallet wait
-    let multisigClimate = await multisigClimateFuture;
-    console.log("\nMultiSigWallet Climate: " + multisigClimate.address);
-    let multisigCommunity = await multisigCommunityFuture;
-    console.log("MultiSigWallet Community: " + multisigCommunity.address);
     let multisigReserve = await multisigReserveFuture;
     console.log("MultiSigWallet Reserve: " + multisigReserve.address);
     let multisigDevs = await multisigDevsFuture;
     console.log("MultiSigWallet Devs: " + multisigDevs.address);
+    let multisigBounties = await multisigBountiesFuture;
+    console.log("MultiSigWallet Bounties: " + multisigBounties.address);
     // MiniMeTokenFactory wait
     let miniMeTokenFactory = await miniMeTokenFactoryFuture;
     console.log("MiniMeTokenFactory: " + miniMeTokenFactory.address);
     console.log();
 
+    // Climate send
     let climateFuture = Climate.new(miniMeTokenFactory.address);
-    let climateContributionFuture = ClimateContribution.new();
+    // StatusContribution send
+    let climateCrowdsaleFuture = ClimateContribution.new();
 
-    // Climate wait
+    // climate wait
     let climate = await climateFuture;
-    let climateContribution = await climateContributionFuture;
+    console.log("Climate: " + climate.address);
+    // StatusContribution wait
+    let climateContribution = await climateCrowdsaleFuture;
+    console.log("Climate contribution: " + climateContribution.address);
+    console.log();
 
-    // Climate initialize checkpoints for 0th TX gas savings
+    // climate initialize checkpoints for 0th TX gas savings
     await climate.generateTokens('0x0', 1);
     await climate.destroyTokens('0x0', 1);
 
-    // Climate changeController send
+    // climate changeController send
     let climateChangeControllerFuture = climate.changeController(climateContribution.address);
-    // ContributionWallet send
-    let contributionWalletFuture = ContributionWallet.new(
-        multisigClimate.address,
-        endBlock,
-        climateContribution.address);
+    // // ContributionWallet send
+    // let contributionWalletFuture = ContributionWallet.new(
+    //     addressBitcoinSuisse,
+    //     endBlock,
+    //     realCrowdsale.address);
     // DevTokensHolder send
     let devTokensHolderFuture = DevTokensHolder.new(
         multisigDevs.address,
-        climateContribution.address,
-        climate.address);
+        climateContribution.address);
 
-    // Climate changeController wait
-    await climateChangeControllerFuture;
-    console.log("Climate changed controller!");
-    // ContributionWallet wait
-    let contributionWallet = await contributionWalletFuture;
-    console.log("ContributionWallet: " + contributionWallet.address);
+    // ReserveTokensHolder send
+    let reserveTokensHolderFuture = ReserveTokensHolder.new(
+        multisigReserve.address,
+        climateContribution.address);
+
+    // // ContributionWallet wait
+    // let contributionWallet = await contributionWalletFuture;
+    // console.log("ContributionWallet: " + contributionWallet.address);
     // DevTokensHolder wait
     let devTokensHolder = await devTokensHolderFuture;
     console.log("DevTokensHolder: " + devTokensHolder.address);
     console.log();
 
+    let reserveTokensHolder = await reserveTokensHolderFuture;
+    console.log("ReserveTokensHolder: " + reserveTokensHolder.address);
+    console.log();
+
     // ClimatePlaceHolder send
     let climatePlaceHolderFuture = ClimatePlaceHolder.new(
-        multisigCommunity.address,
+        addressMainOwner,
         climate.address,
         climateContribution.address);
 
-    // ClimatePlaceHolder wait
-    let climatePlaceHolder = await climatePlaceHolderFuture;
-    console.log("ClimatePlaceHolder: " + climatePlaceHolder.address);
+    // climate placeholder wait
+    let placeHolder = await climatePlaceHolderFuture;
+    console.log("Climate placeholder: " + placeHolder.address);
     console.log();
 
-    // ClimateContribution initialize send/wait
+    // StatusContribution initialize send/wait
     await climateContribution.initialize(
         climate.address,
-        climatePlaceHolder.address,
+        placeHolder.address,
 
         startBlock,
         endBlock,
 
-        contributionWallet.address,
+        addressBitcoinSuisse,
 
-        multisigReserve.address,
-        devTokensHolder.address);
-    console.log("ClimateContribution initialized!");
+        reserveTokensHolder.address,
+        devTokensHolder.address,
+        multisigBounties.address);
+    console.log("Climate Crowdsale initialized!");
 };
