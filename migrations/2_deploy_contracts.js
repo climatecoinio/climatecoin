@@ -9,8 +9,8 @@ const ReserveTokensHolder = artifacts.require("ReserveTokensHolder");
 
 
 // All of these constants need to be configured before deploy
-const addressBitcoinSuisse = "0x8a838b1722750ba185f189092833791adb98955f";  //address test
-const addressMainOwner = "0x5f61a7da478e982bbd147201380c089e34543ab4";
+const addressBitcoinSuisse = "0x00349679446C6bfb3232eAfe69e4157FFf98cace";  //address test
+const addressMainOwner = "0x00349679446C6bfb3232eAfe69e4157FFf98cace";
 
 const addressesReserve = [
     addressMainOwner
@@ -27,13 +27,13 @@ const addressesBounties = [
 ];
 const multisigBountiesReqs = 1;
 
-const startBlock = 1567500;
-const endBlock = 1568000;
+const startBlock = 1941920;
+const endBlock = 1942000;
 
 
 module.exports = async function(deployer, network, accounts) {
     //if (network === "development") return;  // Don't deploy on tests
-
+console.log("Start migrating: ");    
     // MultiSigWallet send
     let multisigReserveFuture = MultiSigWallet.new(addressesReserve, multisigReserveReqs);
     let multisigDevsFuture = MultiSigWallet.new(addressesDevs, multisigDevsReqs);

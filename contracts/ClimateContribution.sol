@@ -38,7 +38,7 @@ contract ClimateContribution is Owned, TokenController {
 
     uint256 constant public fourthBonusPercent = 5;
 
-    uint256 constant public guaranteedPercent = 25;
+    uint256 constant public guaranteedPercent = 27;
 
     MiniMeToken public Climate;
 

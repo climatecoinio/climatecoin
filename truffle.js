@@ -10,8 +10,7 @@ module.exports = {
             network_id: 15,
             host: "localhost",
             port: 8545,
-            gas: 4000000,
-            gasPrice: 20e9,
+	    from: "0x00349679446C6bfb3232eAfe69e4157FFf98cace",
         },
         development_migrate: {
             network_id: 15,
